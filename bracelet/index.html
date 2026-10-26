@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>定制你的水晶手链 ✦ 预览版</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :root{
+    --bg:#faf6f4; --card:#ffffff; --ink:#3d2c4a; --sub:#8a7b96;
+    --accent:#9b6dd6; --accent2:#e8b4c8; --gold:#d4af6a;
+    --ring:rgba(155,109,214,.18);
+  }
+  html,body{ height:100%; }
+  body{
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+    background:linear-gradient(160deg,#faf6f4 0%,#f3ecfa 55%,#fdeef4 100%);
+    color:var(--ink); padding-bottom:40px; overflow-x:hidden;
+  }
+  .wrap{ max-width:520px; margin:0 auto; padding:0 18px; }
+
+  /* ── 头部 ── */
+  header{ text-align:center; padding:34px 0 6px; }
+  .kicker{ font-size:12px; letter-spacing:.35em; color:var(--accent); text-transform:uppercase; }
+  h1{ font-family:Georgia,"Songti SC",serif; font-size:27px; font-weight:600; margin:8px 0 6px; }
+  h1 em{ font-style:normal; color:var(--accent); }
+  .sub{ font-size:13px; color:var(--sub); line-height:1.6; }
+
+  /* ── 预览区 ── */
+  .stage{
+    position:relative; margin:22px auto 6px; width:300px; height:300px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .halo{
+    position:absolute; inset:18px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, rgba(255,255,255,.9), rgba(232,180,200,.25) 55%, rgba(155,109,214,.14));
+    box-shadow:0 18px 50px rgba(155,109,214,.18), inset 0 0 40px rgba(255,255,255,.7);
+    animation:breathe 5s ease-in-out infinite;
+  }
+  @keyframes breathe{ 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.03);} }
+  #ring{ position:absolute; width:230px; height:230px; }
+  .bead{
+    position:absolute; left:50%; top:50%; width:34px; height:34px; margin:-17px;
+    border-radius:50%;
+    box-shadow: inset -5px -7px 10px rgba(0,0,0,.28), inset 4px 5px 8px rgba(255,255,255,.55), 0 3px 6px rgba(61,44,74,.25);
+    transition: transform .55s cubic-bezier(.34,1.4,.5,1), background .3s;
+  }
+  .bead::after{
+    content:""; position:absolute; left:22%; top:16%; width:30%; height:26%;
+    border-radius:50%; background:rgba(255,255,255,.85); filter:blur(1.5px);
+  }
+  .spacer{ border-radius:50%!important; background:linear-gradient(135deg,#f5e7c8,#c9a24b 60%,#f7eccf)!important;
+    box-shadow: inset -4px -5px 8px rgba(120,90,20,.4), inset 3px 4px 6px rgba(255,255,255,.8), 0 2px 5px rgba(0,0,0,.25)!important;
+    width:22px!important; height:22px!important; margin:-11px!important;
+  }
+  .charm{
+    position:absolute; left:50%; top:50%; width:40px; height:40px; margin:-20px;
+    display:flex; align-items:center; justify-content:center; font-size:30px;
+    filter:drop-shadow(0 4px 6px rgba(0,0,0,.3));
+    transition: transform .55s cubic-bezier(.34,1.4,.5,1);
+    z-index:3;
+  }
+  .center{
+    position:relative; z-index:2; text-align:center; pointer-events:none;
+  }
+  .price{ font-family:Georgia,serif; font-size:38px; font-weight:700; color:var(--ink); line-height:1; }
+  .price small{ font-size:16px; font-weight:400; color:var(--sub); }
+  .spec{ font-size:12px; color:var(--sub); margin-top:7px; letter-spacing:.06em; }
+
+  /* ── 卡片 ── */
+  .card{
+    background:var(--card); border-radius:20px; padding:18px; margin-top:16px;
+    box-shadow:0 6px 24px rgba(61,44,74,.07); border:1px solid rgba(155,109,214,.08);
+  }
+  .card h3{ font-size:14px; font-weight:600; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; }
+  .card h3 .hint{ font-weight:400; font-size:11px; color:var(--sub); }
+
+  /* 主石选择 */
+  .stones{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+  .stone{
+    border:2px solid transparent; border-radius:14px; background:#fbf8fd;
+    padding:9px 4px 7px; text-align:center; cursor:pointer; transition:.18s; position:relative;
+  }
+  .stone .dot{
+    width:30px; height:30px; border-radius:50%; margin:0 auto 5px;
+    box-shadow: inset -4px -5px 8px rgba(0,0,0,.3), inset 3px 4px 6px rgba(255,255,255,.6), 0 2px 4px rgba(0,0,0,.18);
+    position:relative;
+  }
+  .stone .dot::after{ content:""; position:absolute; left:20%; top:15%; width:32%; height:26%; border-radius:50%; background:rgba(255,255,255,.85); filter:blur(1px); }
+  .stone b{ font-size:11px; font-weight:600; display:block; }
+  .stone i{ font-size:9.5px; font-style:normal; color:var(--sub); display:block; margin-top:2px; line-height:1.3; }
+  .stone.on{ border-color:var(--accent); background:#f6f0ff; transform:translateY(-2px); }
+  .stone .plus{ position:absolute; top:-7px; right:-4px; background:#e0538a; color:#fff; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; }
+
+  /* 吊坠/材质档 */
+  .tiers{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .tier{
+    border:2px solid transparent; border-radius:14px; background:#fbf8fd;
+    padding:11px 12px; cursor:pointer; transition:.18s; display:flex; justify-content:space-between; align-items:center;
+  }
+  .tier b{ font-size:13px; display:block; }
+  .tier i{ font-size:10.5px; font-style:normal; color:var(--sub); }
+  .tier span{ font-family:Georgia,serif; font-weight:700; font-size:15px; color:var(--accent); }
+  .tier.on{ border-color:var(--accent); background:#f6f0ff; }
+
+  /* 手围 */
+  .size-row{ display:flex; align-items:center; justify-content:space-between; }
+  .stepper{ display:flex; align-items:center; gap:16px; }
+  .stepper button{
+    width:42px; height:42px; border-radius:50%; border:1.5px solid var(--ring);
+    background:#fff; font-size:22px; color:var(--accent); cursor:pointer; transition:.15s;
+  }
+  .stepper button:active{ transform:scale(.9); background:#f6f0ff; }
+  .stepper .val{ font-family:Georgia,serif; font-size:26px; font-weight:700; min-width:86px; text-align:center; }
+  .stepper .val small{ font-size:13px; font-weight:400; color:var(--sub); }
+  .size-note{ font-size:11px; color:var(--sub); text-align:right; max-width:150px; line-height:1.5; }
+
+  /* 配色 */
+  .metal{ display:flex; gap:10px; }
+  .metal button{
+    flex:1; padding:10px; border-radius:12px; border:2px solid transparent; cursor:pointer;
+    font-size:13px; font-weight:600; transition:.15s; display:flex; align-items:center; justify-content:center; gap:7px;
+    background:#fbf8fd; color:var(--ink);
+  }
+  .metal button .m{ width:16px; height:16px; border-radius:50%; box-shadow:inset -2px -3px 4px rgba(0,0,0,.3), inset 2px 2px 3px rgba(255,255,255,.7); }
+  .metal button.on{ border-color:var(--accent); background:#f6f0ff; }
+
+  /* 量手围 */
+  .howto{ font-size:12px; color:var(--sub); line-height:1.8; background:#fbf8fd; border-radius:12px; padding:12px 14px; margin-top:12px; }
+  .howto b{ color:var(--ink); }
+
+  /* 下单 */
+  .order{
+    display:block; width:100%; margin-top:18px; padding:17px; border:none; border-radius:18px;
+    background:linear-gradient(135deg,#9b6dd6,#c06cc0 55%,#e8b4c8);
+    color:#fff; font-size:16.5px; font-weight:700; letter-spacing:.05em; cursor:pointer;
+    box-shadow:0 10px 26px rgba(155,109,214,.35); transition:.18s; font-family:inherit;
+  }
+  .order:active{ transform:scale(.98); }
+  .order small{ display:block; font-weight:400; font-size:11.5px; opacity:.85; margin-top:3px; }
+  .disclaim{ text-align:center; font-size:10.5px; color:var(--sub); margin-top:14px; line-height:1.7; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="kicker">Design Your Own</div>
+    <h1>定制属于你的<em>水晶手链</em></h1>
+    <p class="sub">选主石 · 挑吊坠 · 调手围 —— 实时预览，一步到位</p>
+  </header>
+
+  <!-- 预览 -->
+  <div class="stage">
+    <div class="halo"></div>
+    <div id="ring"></div>
+    <div class="center">
+      <div class="price"><small>RM</small><span id="price">158</span></div>
+      <div class="spec" id="spec">白水晶 · 24颗 · 16cm</div>
+    </div>
+  </div>
+
+  <!-- 主石 -->
+  <div class="card">
+    <h3>① 选择主石 <span class="hint">点选一种</span></h3>
+    <div class="stones" id="stones"></div>
+  </div>
+
+  <!-- 吊坠 -->
+  <div class="card">
+    <h3>② 选择款式吊坠 <span class="hint">决定串法与配件</span></h3>
+    <div class="tiers" id="tiers"></div>
+  </div>
+
+  <!-- 手围 -->
+  <div class="card">
+    <h3>③ 调整手围 <span class="hint">16–22cm</span></h3>
+    <div class="size-row">
+      <div class="stepper">
+        <button id="minus">−</button>
+        <div class="val"><span id="cm">16</span><small> cm</small></div>
+        <button id="plus">＋</button>
+      </div>
+      <div class="size-note" id="sizeNote">17cm 起加 RM10<br>约 <b id="beadN">24</b> 颗</div>
+    </div>
+    <div class="howto">
+      <b>怎么量手围？</b> 用软尺贴着手腕最细处绕一圈，贴紧不勒即可。没有软尺？用一条纸条量完再量长度。<br>不确定？选比实际大 0.5cm 更舒适～
+    </div>
+  </div>
+
+  <!-- 配件色 -->
+  <div class="card">
+    <h3>④ 配件颜色</h3>
+    <div class="metal" id="metal">
+      <button data-m="silver" class="on"><span class="m" style="background:linear-gradient(135deg,#f2f2f2,#b8bcc4)"></span>925银饰</button>
+      <button data-m="gold"><span class="m" style="background:linear-gradient(135deg,#f7e7b5,#c9973f)"></span>18K金饰</button>
+    </div>
+  </div>
+
+  <button class="order" id="order">
+    📲 WhatsApp 下单 · RM<span id="oPrice">158</span>
+    <small>点开会自动带上你的配置，直接发送给店主</small>
+  </button>
+
+  <p class="disclaim">✦ 本页为设计预览稿 · 价格与联系方式可随时替换<br>水晶为天然材质，纹理与色泽略有差异属正常</p>
+</div>
+
+<script>
+/* ── 数据 ── */
+const STONES = [
+  {id:"clear", name:"白水晶",  sub:"净化·万能搭", c1:"#ffffff", c2:"#cfd8e8", c3:"#eef2fa", prem:0},
+  {id:"rose",  name:"粉晶",    sub:"人缘·桃花",   c1:"#ffd9e2", c2:"#f2a0b8", c3:"#fff0f4", prem:0},
+  {id:"amet",  name:"紫水晶",  sub:"智慧·静心",   c1:"#d9c8ff", c2:"#9678e8", c3:"#efe8ff", prem:0},
+  {id:"citr",  name:"黄水晶",  sub:"财运·自信",   c1:"#ffe9a8", c2:"#f0b93e", c3:"#fff6da", prem:0},
+  {id:"obsid", name:"黑曜石",  sub:"防小人·挡煞", c1:"#5a5566", c2:"#211d2b", c3:"#4a4556", prem:0},
+  {id:"avent", name:"绿幽灵",  sub:"事业·正财",   c1:"#cdeecd", c2:"#5fae72", c3:"#eaf7ea", prem:0},
+  {id:"tiger", name:"虎眼石",  sub:"勇气·果断",   c1:"#e8c07a", c2:"#8a5a24", c3:"#f5dcae", prem:0},
+  {id:"super", name:"超七",    sub:"高频·能量",   c1:"#e8d5f5", c2:"#8a5cc8", c3:"#f5ecfb", prem:20, flag:"+RM20"},
+];
+const TIERS = [
+  {id:"plain", name:"纯水晶款",  desc:"极简串法·银管点缀", price:158, charm:""},
+  {id:"pixiu", name:"貔貅款",    desc:"含1颗貔貅·招财",    price:188, charm:"🐲"},
+  {id:"mini",  name:"迷你天珠",  desc:"含1颗迷你天珠",      price:198, charm:"🔮"},
+  {id:"tian",  name:"天珠款",    desc:"含1颗天珠·藏式",    price:218, charm:"🧿"},
+];
+let S = {stone:STONES[0], tier:TIERS[0], cm:16, metal:"silver"};
+
+/* ── 渲染选择器 ── */
+const stonesEl = document.getElementById("stones");
+STONES.forEach(s=>{
+  const d = document.createElement("div");
+  d.className = "stone" + (s===S.stone?" on":"");
+  d.innerHTML = `${s.flag?`<span class="plus">${s.flag}</span>`:""}
+    <span class="dot" style="background:radial-gradient(circle at 32% 28%, ${s.c3}, ${s.c1} 45%, ${s.c2})"></span>
+    <b>${s.name}</b><i>${s.sub}</i>`;
+  d.onclick = ()=>{ S.stone=s; sync(); };
+  stonesEl.appendChild(d);
+});
+
+const tiersEl = document.getElementById("tiers");
+TIERS.forEach(t=>{
+  const d = document.createElement("div");
+  d.className = "tier" + (t===S.tier?" on":"");
+  d.innerHTML = `<span><b>${t.charm?t.charm+" ":""}${t.name}</b><i>${t.desc}</i></span><span>RM${t.price}</span>`;
+  d.onclick = ()=>{ S.tier=t; sync(); };
+  tiersEl.appendChild(d);
+});
+
+document.getElementById("minus").onclick = ()=>{ S.cm=Math.max(16,S.cm-1); sync(); };
+document.getElementById("plus").onclick  = ()=>{ S.cm=Math.min(22,S.cm+1); sync(); };
+document.querySelectorAll("#metal button").forEach(b=>{
+  b.onclick = ()=>{ S.metal=b.dataset.m; sync(); };
+});
+
+/* ── 渲染手链 ── */
+function beadBG(s){
+  return `radial-gradient(circle at 32% 28%, ${s.c3}, ${s.c1} 45%, ${s.c2})`;
+}
+function render(){
+  const ring = document.getElementById("ring");
+  const n = Math.round(S.cm * 1.5);           // 16cm→24颗
+  const R = 100;
+  let html = "";
+  const charmAngle = 90;                       // 吊坠在正下方
+  let charmPlaced = false;
+  for(let i=0;i<n;i++){
+    const a = (360/n)*i;
+    const isSpacer = (i % 6 === 3);            // 每6颗一颗银/金隔珠
+    const isCharmSlot = !charmPlaced && Math.abs(a-charmAngle) < (360/n)/2;
+    if(isCharmSlot && S.tier.charm){
+      charmPlaced = true;
+      html += `<div class="charm" style="transform:rotate(${a}deg) translateY(${R}px) rotate(${-a}deg)">${S.tier.charm}</div>`;
+      continue;
+    }
+    const cls = isSpacer ? "bead spacer" : "bead";
+    const bg  = isSpacer
+      ? "" : `style="background:${beadBG(S.stone)};transform:rotate(${a}deg) translateY(${R}px) rotate(${-a}deg)"`;
+    const sp  = isSpacer ? ` style="transform:rotate(${a}deg) translateY(${R}px) rotate(${-a}deg)"` : "";
+    html += `<div class="${cls}" ${isSpacer?sp:bg}></div>`;
+  }
+  // 吊坠兜底(没落位就放正下方)
+  if(!charmPlaced && S.tier.charm){
+    html += `<div class="charm" style="transform:rotate(90deg) translateY(100px) rotate(-90deg)">${S.tier.charm}</div>`;
+  }
+  ring.innerHTML = html;
+
+  // 价格
+  const price = S.tier.price + (S.cm>=17?10:0) + S.stone.prem;
+  document.getElementById("price").textContent = price;
+  document.getElementById("oPrice").textContent = price;
+  document.getElementById("cm").textContent = S.cm;
+  document.getElementById("beadN").textContent = n;
+  document.getElementById("spec").textContent =
+    `${S.stone.name} · ${S.tier.name} · ${n}颗 · ${S.cm}cm`;
+}
+
+function sync(){
+  document.querySelectorAll(".stone").forEach((el,i)=>el.classList.toggle("on", STONES[i]===S.stone));
+  document.querySelectorAll(".tier").forEach((el,i)=>el.classList.toggle("on", TIERS[i]===S.tier));
+  document.querySelectorAll("#metal button").forEach(b=>b.classList.toggle("on", b.dataset.m===S.metal));
+  document.getElementById("sizeNote").innerHTML =
+    (S.cm>=17? "已含 +RM10<br>" : "17cm 起加 RM10<br>") + `约 <b id="beadN">${Math.round(S.cm*1.5)}</b> 颗`;
+  render();
+}
+
+/* ── 下单(号码占位，替换成她的即可) ── */
+document.getElementById("order").onclick = ()=>{
+  const price = S.tier.price + (S.cm>=17?10:0) + S.stone.prem;
+  const msg = `你好，我要定制水晶手链 🍁%0A%0A主石：${S.stone.name}%0A款式：${S.tier.name}%0A手围：${S.cm}cm（约${Math.round(S.cm*1.5)}颗）%0A配件：${S.metal==="silver"?"925银饰":"18K金饰"}%0A预估合计：RM${price}`;
+  // ⚠️ 把下面的号码换成她的 WhatsApp 号码（国际格式，不要+号）
+  const phone = "60123456789";
+  window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
+};
+
+sync();
+</script>
+</body>
+</html>
