@@ -1446,30 +1446,16 @@ body::before {
 <body>
 <script>
 (function(){
-  var OVERLAY_HTML = '<div id="rx-lock" style="position:fixed;inset:0;background:#FDFBF7;z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:-apple-system,sans-serif;">'
-    + '<div style="font-size:56px;margin-bottom:12px;">🍁</div>'
-    + '<div id="rx-lock-title" style="font-size:17px;color:#555;margin-bottom:22px;">输入PIN码</div>'
-    + '<input id="rx-lock-input" type="password" inputmode="numeric" maxlength="8" placeholder="••••" style="font-size:26px;letter-spacing:10px;text-align:center;width:150px;padding:10px;border:2px solid #ddd;border-radius:12px;outline:none;background:#fff;">'
-    + '<div id="rx-lock-msg" style="font-size:13px;color:#c0392b;margin-top:12px;height:18px;"></div>'
+  var SPLASH_HTML = '<div id="rx-splash" style="position:fixed;inset:0;background:#FDFBF7;z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:-apple-system,sans-serif;transition:opacity .45s ease;">'
+    + '<div style="font-size:56px;">🍁</div>'
+    + '<div style="font-size:15px;color:#999;margin-top:14px;letter-spacing:2px;">Leaf Account</div>'
     + '</div>';
   document.addEventListener('DOMContentLoaded', function(){
-    var s = document.createElement('div'); s.innerHTML = OVERLAY_HTML; document.body.appendChild(s.firstChild);
-    var input = document.getElementById('rx-lock-input');
-    var msg = document.getElementById('rx-lock-msg');
-    var title = document.getElementById('rx-lock-title');
-    var pin = localStorage.getItem('leaf_pin');
-    var isNew = !pin;
-    if(isNew){ title.textContent = '首次使用：设置PIN码'; msg.style.color='#888'; msg.textContent='4-8位数字，下次进入要输'; }
-    input.focus();
-    input.addEventListener('input', function(){
-      var v = input.value;
-      if(isNew){
-        if(v.length>=4 && v.length<=8 && /^\d+$/.test(v)){ localStorage.setItem('leaf_pin', v); document.getElementById('rx-lock').remove(); }
-      } else {
-        if(v===pin){ document.getElementById('rx-lock').remove(); }
-        else if(v.length>=pin.length){ msg.textContent='PIN错误'; input.value=''; }
-      }
-    });
+    try { localStorage.removeItem('leaf_pin'); } catch(e) {}
+    var holder = document.createElement('div'); holder.innerHTML = SPLASH_HTML; document.body.appendChild(holder.firstChild);
+    var el = document.getElementById('rx-splash');
+    setTimeout(function(){ el.style.opacity = '0'; }, 900);
+    setTimeout(function(){ if (el && el.parentNode) el.parentNode.removeChild(el); }, 1400);
   });
 })();
 </script>
@@ -1514,7 +1500,7 @@ body::before {
                     <div class="sum-val" style="color:var(--expense)">-<span id="rpt-exp">0</span></div>
                 </div>
                 <div class="sum-cell border-bal">
-                    <div class="sum-label">累计结余</div>
+                    <div class="sum-label">年度结余 <span id="year-badge" style="font-size:10px; opacity:0.65;"></span></div>
                     <div class="sum-val"><span id="rpt-bal">0</span></div>
                 </div>
             </div>
@@ -1717,6 +1703,7 @@ body::before {
             <div class="backup-btn backup-export" onclick="DataMgr.export()">📤 导出数据 (下载 .json)</div>
             <div class="backup-btn backup-import" onclick="document.getElementById('file-input').click()">📥 导入数据</div>
             <div class="backup-btn" onclick="App.exportCSV()" style="background:#E8EAF6; color:#283593;">📊 导出 Excel (CSV)</div>
+            <div class="backup-btn" onclick="App.openReconcile()" style="background:#E0F7FA; color:#00695C;">🔍 月度对账（校准到真实余额）</div>
             <input type="file" id="file-input" style="display:none" onchange="DataMgr.import(this)">
 
             <div class="backup-section">
@@ -1756,6 +1743,30 @@ body::before {
         </div>
     </div>
 
+    <!-- V2.0 月度对账 -->
+    <div id="modal-reconcile" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3>🔍 月度对账</h3>
+            <p style="font-size:12px; color:#888; margin-bottom:15px;">报一下现在的活钱总数（现金+TnG+银行，不含储蓄/定存），让账本回到现实。</p>
+            <div style="text-align:center; margin-bottom:15px;">
+                <div style="font-size:12px; color:#999;">账本推算的年度结余</div>
+                <div id="rec-book" style="font-size:20px; font-weight:800;">0.00</div>
+            </div>
+            <input id="rec-actual" type="number" inputmode="decimal" placeholder="实际活钱总数" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; font-size:16px; margin-bottom:12px; box-sizing:border-box;">
+            <div id="rec-diff" style="text-align:center; font-size:13px; color:#666; margin-bottom:15px;">输入后显示差额</div>
+            <div class="backup-btn" onclick="App.doReconcile()" style="background:#E0F7FA; color:#00695C;">记下这笔对账调整</div>
+        </div>
+    </div>
+    <!-- V2.0 年初一问 -->
+    <div id="modal-year-close" class="modal-overlay">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3 id="yc-title">新年快乐 🎉</h3>
+            <p style="font-size:13px; color:#888; margin-bottom:20px;" id="yc-desc">去年的结余要怎么处理？</p>
+            <div class="backup-btn" onclick="App.closeYearChoice('carry')" style="background:#E8F5E9; color:#2E7D32;">📥 带进今年（默认）</div>
+            <div class="backup-btn" onclick="App.closeYearChoice('savings')" style="background:#FFF8E1; color:#BC6C25;">🐷 转入储蓄</div>
+        </div>
+    </div>
+
     <script>
     // Auto-scroll focused inputs into view above virtual keyboard
     document.addEventListener('focusin', function(e) {
@@ -1781,7 +1792,7 @@ body::before {
             { name:'零用', icon:'🍬', color:'#FEA47F' }, { name:'额外', icon:'💎', color:'#54A0FF' },
             { name:'投资', icon:'📈', color:'#E88D67' }
         ],
-        CURRENT_SCHEMA_VER: 3,
+        CURRENT_SCHEMA_VER: 4,
         BUDGET_CATS: ['饮食','交通','娱乐','日用','购物'],
         JAR_TXN_PREFIX: '_jar_'
     };
@@ -2073,6 +2084,17 @@ body::before {
                     });
                     data.meta.version = 3;
                 }
+                if (ver < 4) {
+                    // V2.0: 年度结余池(carryovers) + 年度结转记录(lastYearClosed)
+                    if (!data.carryovers) data.carryovers = {};
+                    var maxY = 0;
+                    data.list.forEach(function(t) {
+                        var yy = parseInt((t.date || '').slice(0, 4), 10) || 0;
+                        if (yy > maxY) maxY = yy;
+                    });
+                    if (data.meta.lastYearClosed === undefined) data.meta.lastYearClosed = maxY;
+                    data.meta.version = 4;
+                }
             }
             return data;
         }
@@ -2113,6 +2135,7 @@ body::before {
                 self.setMode('month');
                 self.renderNotes();
                 window.addEventListener("pagehide", function() { self.saveData(true); });
+                self.maybeYearClose();
 
                 // V10 Fix4: iOS Safari 检测 — 提示添加到主屏幕
                 var ua = navigator.userAgent;
@@ -2289,6 +2312,7 @@ body::before {
                     var list = this.indices.monthMap[mKey2] || [];
                     var mInc = 0, mExp = 0;
                     list.forEach(function(t) {
+                        if(t.cat === '对账调整') return;
                         if(t.type === 'income') mInc = safeAdd(mInc, t.amt);
                         else if(t.cat !== '储蓄' && t.cat !== '取储' && t.cat !== '定存') mExp = safeAdd(mExp, t.amt);
                     });
@@ -2360,40 +2384,64 @@ body::before {
                 scopeList = monthData.filter(function(t) { return self.parseDate(t.date).getDate() === d; });
             }
 
-            var curInc = 0, curExp = 0, curSavNet = 0;
+            if (this.mode !== 'day') scopeList = scopeList.filter(function(t) { return t.cat !== '对账调整'; });
+            var curInc = 0, curExp = 0, curSavNet = 0, savOut = 0, savIn = 0;
             this.tempExpMap = {}; this.tempIncMap = {};
 
             scopeList.forEach(function(t) {
-                if(t.type === 'income') {
+                if (t.cat === '储蓄' || t.cat === '定存') { curSavNet = safeAdd(curSavNet, t.amt); savOut = safeAdd(savOut, t.amt); }
+                else if (t.cat === '取储') { curSavNet = safeSub(curSavNet, t.amt); savIn = safeAdd(savIn, t.amt); }
+                else if(t.type === 'income') {
                     curInc = safeAdd(curInc, t.amt);
                     self.tempIncMap[t.cat] = { amt: safeAdd((self.tempIncMap[t.cat] ? self.tempIncMap[t.cat].amt : 0), t.amt), color: t.color || '#95D1CC' };
                 } else {
-                    if (t.cat === '储蓄' || t.cat === '定存') curSavNet = safeAdd(curSavNet, t.amt);
-                    else if (t.cat === '取储') curSavNet = safeSub(curSavNet, t.amt);
-                    else {
-                        curExp = safeAdd(curExp, t.amt);
-                        self.tempExpMap[t.cat] = { amt: safeAdd((self.tempExpMap[t.cat] ? self.tempExpMap[t.cat].amt : 0), t.amt), color: t.color };
-                    }
+                    curExp = safeAdd(curExp, t.amt);
+                    self.tempExpMap[t.cat] = { amt: safeAdd((self.tempExpMap[t.cat] ? self.tempExpMap[t.cat].amt : 0), t.amt), color: t.color };
                 }
             });
 
+            // V2.0b 心愿罐存入 = 存出(活钱真实减少)
+            var scopeY = this.currDate.getFullYear();
+            var scopeM = this.currDate.getMonth() + 1;
+            var jarSelf = this;
+            (this.data.jarTxns || []).forEach(function(t) {
+                if (t.cat !== '储蓄') return;
+                var jd = jarSelf.parseDate(t.date);
+                if (isNaN(jd)) return;
+                var inScope = (jarSelf.mode === 'year')
+                    ? jd.getFullYear() === scopeY
+                    : (jd.getFullYear() === scopeY && (jd.getMonth() + 1) === scopeM);
+                if (inScope) { savOut = safeAdd(savOut, t.amt); curSavNet = safeAdd(curSavNet, t.amt); }
+            });
             this.tempTotalExp = curExp;
             this.tempTotalInc = curInc;
+            this.tempSavOut = savOut; this.tempSavIn = savIn;
 
-            var allTimeBal = 0;
-            var endTime = new Date(this.currDate);
-            if(this.mode === 'day') endTime.setHours(23,59,59,999);
-            else if(this.mode === 'month') { endTime.setMonth(endTime.getMonth()+1); endTime.setDate(0); }
-            else { endTime.setFullYear(endTime.getFullYear()+1); endTime.setMonth(0); endTime.setDate(0); }
-
+            // V2.0 年度结余池 = 当年真实结余Σ + 年初带入
+            var year = this.currDate.getFullYear();
+            var pool = (this.data.carryovers || {})[year] || 0;
             this.data.list.forEach(function(t) {
-                if(self.parseDate(t.date) <= endTime) {
-                    if(t.type === 'income') allTimeBal = safeAdd(allTimeBal, t.amt);
-                    else if(t.cat === '储蓄' || t.cat === '定存') allTimeBal = safeSub(allTimeBal, t.amt);
-                    else if(t.cat === '取储') allTimeBal = safeAdd(allTimeBal, t.amt);
-                    else allTimeBal = safeSub(allTimeBal, t.amt);
+                if(self.parseDate(t.date).getFullYear() === year) {
+                    if(t.cat === '储蓄' || t.cat === '定存') pool = safeSub(pool, t.amt);
+                    else if(t.cat === '取储') pool = safeAdd(pool, t.amt);
+                    else if(t.type === 'income') pool = safeAdd(pool, t.amt);
+                    else pool = safeSub(pool, t.amt);
                 }
             });
+            (this.data.jarTxns || []).forEach(function(t) {
+                if (t.cat === '储蓄' && self.parseDate(t.date).getFullYear() === year) pool = safeSub(pool, t.amt);
+            });
+            var allTimeBal = pool;
+            this.lastAnnualPool = allTimeBal;
+            var yearAdjust = 0;
+            this.data.list.forEach(function(t) {
+                if (t.cat === '对账调整' && self.parseDate(t.date).getFullYear() === year) {
+                    yearAdjust = safeAdd(yearAdjust, t.type === 'expense' ? -t.amt : t.amt);
+                }
+            });
+            this.tempYearAdjust = yearAdjust;
+            var yBadge = document.getElementById('year-badge');
+            if (yBadge) yBadge.textContent = year;
 
             if (this.mode === 'day') {
                 document.getElementById('day-exp-val').innerText = this.formatCompact(curExp);
@@ -2434,7 +2482,7 @@ body::before {
             var svg = document.getElementById('pie-svg');
             svg.innerHTML = '';
             
-            var balance = safeSub(this.tempTotalInc, this.tempTotalExp);
+            var balance = (this.mode === 'year') ? (this.lastAnnualPool || 0) : safeAdd(safeSub(this.tempTotalInc, this.tempTotalExp), safeSub(this.tempSavIn || 0, this.tempSavOut || 0));
             var centerText = document.createElementNS("http://www.w3.org/2000/svg", "text");
             centerText.setAttribute("x", "16"); centerText.setAttribute("y", "15");
             centerText.setAttribute("class", "chart-center-text");
@@ -2443,10 +2491,18 @@ body::before {
             var centerLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
             centerLabel.setAttribute("x", "16"); centerLabel.setAttribute("y", "19");
             centerLabel.setAttribute("class", "chart-center-label");
-            centerLabel.textContent = "当月结余";
+            centerLabel.textContent = (this.mode === 'year') ? '当年结余' : '当月结余';
 
             svg.appendChild(centerText);
             svg.appendChild(centerLabel);
+            if ((this.tempSavOut || 0) > 0 || (this.tempSavIn || 0) > 0 || (this.mode === 'year' && (this.tempYearAdjust || 0) !== 0)) {
+                var subText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                subText.setAttribute("x", "16"); subText.setAttribute("y", "22.8");
+                subText.setAttribute("class", "chart-center-label");
+                subText.setAttribute("font-size", "1.5");
+                subText.textContent = "存" + this.formatCompact(this.tempSavOut || 0) + " 取" + this.formatCompact(this.tempSavIn || 0) + ((this.mode === 'year' && (this.tempYearAdjust || 0) !== 0) ? (" 调" + this.formatCompact(this.tempYearAdjust)) : "");
+                svg.appendChild(subText);
+            }
 
             if(total === 0) return;
 
@@ -2686,6 +2742,60 @@ body::before {
             this.saveData();
         },
         
+        // V2.0 月度对账
+        openReconcile: function() {
+            document.getElementById('rec-book').textContent = this.formatCompact(this.lastAnnualPool || 0);
+            document.getElementById('rec-actual').value = '';
+            document.getElementById('rec-diff').textContent = '输入后显示差额';
+            document.getElementById('modal-reconcile').classList.add('show');
+        },
+        doReconcile: function() {
+            var v = parseFloat(document.getElementById('rec-actual').value);
+            if (isNaN(v)) { alert('请输入实际活钱总数'); return; }
+            var diff = safeSub(v, this.lastAnnualPool || 0);
+            if (Math.abs(diff) < 0.005) { alert('✅ 完全吻合，账本就是现实！'); closeModal(); return; }
+            var today = this.formatDateStr(new Date());
+            this.data.list.push({ id: Date.now() + 'rec', type: diff < 0 ? 'expense' : 'income', amt: Math.abs(diff),
+                cat: '对账调整', icon: '🔍', color: '#8395A7', note: '[对账调整] 实报' + v + ' vs 推算' + this.formatCompact(this.lastAnnualPool || 0), date: today });
+            this.saveData(true); this.buildIndex(); this.render();
+            alert('✅ 已记下对账调整 ' + (diff < 0 ? '-' : '+') + Math.abs(diff).toFixed(2));
+            closeModal();
+        },
+        // V2.0 年初一问
+        maybeYearClose: function() {
+            var cur = new Date().getFullYear();
+            var last = (this.data.meta && this.data.meta.lastYearClosed) || 0;
+            if (cur <= last) return;
+            var list = this.data.list, self = this;
+            var pool = (this.data.carryovers || {})[cur - 1] || 0;
+            list.forEach(function(t) {
+                if (self.parseDate(t.date).getFullYear() === cur - 1) {
+                    if (t.cat === '储蓄' || t.cat === '定存') pool = safeSub(pool, t.amt);
+                    else if (t.cat === '取储') pool = safeAdd(pool, t.amt);
+                    else if (t.type === 'income') pool = safeAdd(pool, t.amt);
+                    else pool = safeSub(pool, t.amt);
+                }
+            });
+            this.data.meta.lastYearClosed = cur;
+            if (Math.abs(pool) < 0.005 || !list.length) { this.saveData(true); return; }
+            this.pendingYearPool = pool; this.pendingYearNum = cur;
+            document.getElementById('yc-title').textContent = '新年快乐 🎉 ' + cur + ' 到了';
+            document.getElementById('yc-desc').textContent = '去年(' + (cur - 1) + ')结余 RM ' + pool.toFixed(2) + '，要怎么处理？';
+            document.getElementById('modal-year-close').classList.add('show');
+        },
+        closeYearChoice: function(mode) {
+            var y = this.pendingYearNum, pool = this.pendingYearPool || 0;
+            if (mode === 'savings') {
+                this.data.list.push({ id: Date.now() + 'yc', type: 'expense', amt: Math.abs(pool), cat: '储蓄',
+                    icon: '🐷', color: '#F3C583', note: '年初结余转入储蓄', date: (y - 1) + '-12-31' });
+            } else {
+                if (!this.data.carryovers) this.data.carryovers = {};
+                this.data.carryovers[y] = pool;
+            }
+            this.pendingYearPool = 0;
+            this.saveData(true); this.buildIndex(); this.render();
+            closeModal();
+        },
         openSavingsHistory: function() {
             this.renderSavingsHistory();
             document.getElementById('modal-sav-history').classList.add('show');
@@ -3000,7 +3110,7 @@ body::before {
             var monthList = App.indices.monthMap[monthKey] || [];
             var realExpMap = {};
             monthList.forEach(function(t) {
-                if (t.type !== 'income' && t.cat !== '储蓄' && t.cat !== '取储' && t.cat !== '定存') {
+                if (t.type !== 'income' && t.cat !== '储蓄' && t.cat !== '取储' && t.cat !== '定存' && t.cat !== '对账调整') {
                     if (!realExpMap[t.cat]) realExpMap[t.cat] = { amt: 0, color: t.color };
                     realExpMap[t.cat].amt = safeAdd(realExpMap[t.cat].amt, t.amt);
                 }
