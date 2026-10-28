@@ -2225,9 +2225,19 @@ body::before {
         },
         changeDate: function(dir) {
             var d = this.currDate;
-            if (this.mode === 'day') d.setDate(d.getDate() + dir);
-            else if (this.mode === 'month') d.setMonth(d.getMonth() + dir);
-            else if (this.mode === 'year') d.setFullYear(d.getFullYear() + dir);
+            if (this.mode === 'day') { d.setDate(d.getDate() + dir); }
+            else if (this.mode === 'month') {
+                // FIX-K1: 先掐到1号再翻月,翻完夹回合法日,防月末溢出跳月/卡死 (如10/31退回变10/1)
+                var dd = d.getDate();
+                d.setDate(1);
+                d.setMonth(d.getMonth() + dir);
+                d.setDate(Math.min(dd, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()));
+            } else if (this.mode === 'year') {
+                var dy = d.getDate();
+                d.setDate(1);
+                d.setFullYear(d.getFullYear() + dir);
+                d.setDate(Math.min(dy, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()));
+            }
             this.currDate = new Date(d);
             this.render();
         },
@@ -2253,7 +2263,7 @@ body::before {
         
         changeCalPage: function(dir) {
             if (this.mode === 'day') {
-                this.calendarViewDate.setMonth(this.calendarViewDate.getMonth() + dir);
+                (function(){ var cd = this.calendarViewDate, cdDay = cd.getDate(); cd.setDate(1); cd.setMonth(cd.getMonth() + dir); cd.setDate(Math.min(cdDay, new Date(cd.getFullYear(), cd.getMonth() + 1, 0).getDate())); }).call(this);
             } else if (this.mode === 'month') {
                 this.calendarViewDate.setFullYear(this.calendarViewDate.getFullYear() + dir);
             } else if (this.mode === 'year') {
@@ -2338,9 +2348,9 @@ body::before {
                     el2.innerText = (i+1) + "月";
                     (function(month) {
                         el2.onclick = function() {
+                            self.currDate.setDate(1);
                             self.currDate.setFullYear(y);
                             self.currDate.setMonth(month);
-                            self.currDate.setDate(1); 
                             self.render();
                             closeModal();
                         };
@@ -2593,7 +2603,7 @@ body::before {
                         '<div style="font-size:12px; color:#999; margin-top:4px;">' + noteHtml + '</div>' +
                     '</div>' +
                     '<div>' +
-                        '<div class="t-amt ' + escapeHtml(colorClass) + '" style="text-align:right;">' + escapeHtml(sign) + ' ' + t.amt.toFixed(2) + '</div>' +
+                        '<div class="t-amt ' + escapeHtml(colorClass) + '" style="text-align:right;">' + escapeHtml(sign) + ' ' + (Number(t.amt)||0).toFixed(2) + '</div>' +
                         '<div class="t-actions">' +
                             '<span onclick="App.copyTrans(\'' + safeId + '\')" title="再记一笔">📄</span>' +
                             '<span onclick="App.openEdit(\'' + safeId + '\')">✏️</span>' +
@@ -2639,7 +2649,7 @@ body::before {
         delNote: function(id) {
             if(confirm('删除?')) {
                 this.data.notes = this.data.notes.filter(function(n) { return n.id != id; });
-                this.saveData(); 
+                this.saveData(true); 
                 this.renderNotes();
             }
         },
@@ -2744,7 +2754,7 @@ body::before {
             if(navigator && navigator.vibrate) navigator.vibrate([30, 50, 30]);
             this.data.list = this.data.list.filter(function(t) { return t.id != id; });
             this.buildIndex();
-            this.saveData();
+            this.saveData(true);
         },
         
         // V2.0 月度对账
@@ -2756,7 +2766,7 @@ body::before {
         },
         doReconcile: function() {
             var v = parseFloat(document.getElementById('rec-actual').value);
-            if (isNaN(v)) { alert('请输入实际活钱总数'); return; }
+            if (isNaN(v) || !isFinite(v) || v < 0) { alert('请输入有效活钱总数'); return; }
             var diff = safeSub(v, this.lastAnnualPool || 0);
             if (Math.abs(diff) < 0.005) { alert('✅ 完全吻合，账本就是现实！'); closeModal(); return; }
             var today = this.formatDateStr(new Date());
@@ -2825,7 +2835,7 @@ body::before {
                 html += '<div class="sav-item">' +
                     '<div class="sav-date">' + escapeHtml(t.date) + '</div>' +
                     '<div class="sav-type" style="color:' + escapeHtml(color) + '">' + escapeHtml(label) + '</div>' +
-                    '<div class="sav-amt">' + escapeHtml(sign) + ' ' + t.amt.toFixed(2) + '</div>' +
+                    '<div class="sav-amt">' + escapeHtml(sign) + ' ' + (Number(t.amt)||0).toFixed(2) + '</div>' +
                     '<div class="sav-del" onclick="App.deleteSavings(\'' + escapeHtml(t.id) + '\')">🗑</div>' +
                 '</div>';
             });
@@ -2886,7 +2896,7 @@ body::before {
                             '<div style="font-weight:600;">' + escapeHtml(t.cat) + '</div>' +
                             '<div style="font-size:12px; color:#999; margin-top:4px;">' + escapeHtml(t.date) + (t.note ? ' · ' + escapeHtml(t.note) : '') + '</div>' +
                         '</div>' +
-                        '<div class="t-amt ' + escapeHtml(colorClass) + '" style="text-align:right;">' + escapeHtml(sign) + ' ' + t.amt.toFixed(2) + '</div>' +
+                        '<div class="t-amt ' + escapeHtml(colorClass) + '" style="text-align:right;">' + escapeHtml(sign) + ' ' + (Number(t.amt)||0).toFixed(2) + '</div>' +
                     '</div>';
                 }).join('');
             }
@@ -2899,7 +2909,7 @@ body::before {
             var header = '日期,类型,分类,金额,备注\n';
             var rows = this.data.list.map(function(t) {
                 var noteClean = (t.note || '').replace(/"/g, '""');
-                return t.date + ',' + (t.type === 'income' ? '收入' : '支出') + ',' + t.cat + ',' + t.amt.toFixed(2) + ',"' + noteClean + '"';
+                return t.date + ',' + (t.type === 'income' ? '收入' : '支出') + ',' + t.cat + ',' + (Number(t.amt)||0).toFixed(2) + ',"' + noteClean + '"';
             }).join('\n');
             var csv = BOM + header + rows;
             var fileName = 'leaf_report_' + new Date().toISOString().slice(0, 10) + '.csv';
@@ -2918,7 +2928,7 @@ body::before {
         saveTrans: function() {
             var amt = parseFloat(document.getElementById('inp-amt').value);
             var note = document.getElementById('inp-note').value;
-            if(!amt) return alert('请输入金额');
+            if(!amt || !isFinite(amt) || amt <= 0) return alert('请输入有效金额');
             
             var finalDate;
             if (App.editingId) {
@@ -2937,6 +2947,8 @@ body::before {
 
             var newId = App.editingId || (Date.now() + Math.random().toString(16).slice(2));
 
+            // FIX-M: 从未打开过类别选择器时 currCat=null, 主页快捷保存会崩溃(静默失败)
+            if (!App.currCat) App.currCat = (CONFIG[App.currType] || CONFIG.expense)[0];
             var newTrans = {
                 id: newId,
                 type: App.currType,
@@ -2955,7 +2967,7 @@ body::before {
             }
             closeModal();
             App.buildIndex();
-            App.saveData();
+            App.saveData(true);
             if(navigator && navigator.vibrate) navigator.vibrate(50);
         },
         saveNote: function() {
@@ -2970,7 +2982,7 @@ body::before {
             document.getElementById('n-title').value = '';
             document.getElementById('n-body').value = '';
             closeModal();
-            App.saveData(); 
+            App.saveData(true); 
             App.renderNotes();
         }
     };
@@ -3165,6 +3177,7 @@ body::before {
             document.querySelectorAll('.budget-input').forEach(function(inp) {
                 var cat = inp.getAttribute('data-cat');
                 var val = parseFloat(inp.value) || 0;
+                if (!isFinite(val)) val = 0;
                 if (val > 0) monthBudget[cat] = val;
             });
             App.data.budgets[monthKey] = monthBudget;
@@ -3288,6 +3301,7 @@ body::before {
         saveEdit: function() {
             var name = document.getElementById('jar-inp-name').value.trim();
             var target = parseFloat(document.getElementById('jar-inp-target').value) || 0;
+            if (!isFinite(target) || target < 0) target = 0;
             var deadline = document.getElementById('jar-inp-deadline').value || '';
             if (!name) return alert('请输入心愿名称');
             var iconEl = document.getElementById('jar-icon-select').querySelector('.jar-goal-chip.active');
@@ -3319,7 +3333,7 @@ body::before {
 
         confirmDeposit: function() {
             var amt = parseFloat(document.getElementById('jar-dep-amt').value);
-            if (!amt || amt <= 0) return alert('请输入有效金额');
+            if (!amt || !isFinite(amt) || amt <= 0) return alert('请输入有效金额');
             var note = document.getElementById('jar-dep-note').value || '';
             var prefix = CONFIG.JAR_TXN_PREFIX + this.editingJarId;
             var txnId = Date.now() + Math.random().toString(16).slice(2);
@@ -3777,7 +3791,7 @@ body::before {
                 return '<div class="pie-detail-item">' +
                     '<span class="pie-detail-date">' + escapeHtml(t.date.slice(5)) + '</span>' +
                     '<span class="pie-detail-note">' + escapeHtml(t.note || t.cat) + '</span>' +
-                    '<span class="pie-detail-amt">¥' + t.amt.toFixed(2) + '</span>' +
+                    '<span class="pie-detail-amt">¥' + (Number(t.amt)||0).toFixed(2) + '</span>' +
                 '</div>';
             }).join('');
         }
