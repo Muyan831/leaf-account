@@ -2048,7 +2048,12 @@ body::before {
                 if(confirm("🔴 再次确认：真的要清空吗？\n\n自动备份仍保留在设备上。")) {
                     // V10: 重置前自动备份
                     BackupMgr.saveSnapshot(App.data).then(function() {
-                        localStorage.removeItem('leaf_v7');
+                        // FIX-J: 写入"合法的空账本"而不是删除localStorage。
+                        // 删除会让启动自检(startupCheck)从快照把刚备份的旧数据原样复活,
+                        // 重置按钮等于自己撤销自己。同时清空内存,防pagehide自动保存把旧数据写回。
+                        var fresh = { list: [], notes: [], budgets: {}, wishJars: [], jarTxns: [], meta: { version: CONFIG.CURRENT_SCHEMA_VER } };
+                        App.data = fresh;
+                        localStorage.setItem('leaf_v7', JSON.stringify(fresh));
                         location.reload();
                     });
                 }
