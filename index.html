@@ -1792,7 +1792,7 @@ body::before {
             { name:'零用', icon:'🍬', color:'#FEA47F' }, { name:'额外', icon:'💎', color:'#54A0FF' },
             { name:'投资', icon:'📈', color:'#E88D67' }
         ],
-        CURRENT_SCHEMA_VER: 4,
+        CURRENT_SCHEMA_VER: 5,
         BUDGET_CATS: ['饮食','交通','娱乐','日用','购物'],
         JAR_TXN_PREFIX: '_jar_'
     };
@@ -2100,6 +2100,22 @@ body::before {
                     if (data.meta.lastYearClosed === undefined) data.meta.lastYearClosed = maxY;
                     data.meta.version = 4;
                 }
+                if (ver < 5) {
+                    // FIX-Q2 (v5): 剔除v3迁移从主账本搬进来的'_main'重复罐流水——
+                    // 旧版存入=jarTxns一份+主账本'_main'一份,v3又把副本搬进jarTxns=历史翻倍(进度条2×)。
+                    // 现在jarTxns是唯一权威(所有汇总单源统计),重复项全部清除。
+                    if (data.jarTxns && data.jarTxns.length) {
+                        var seenIds = {};
+                        data.jarTxns = data.jarTxns.filter(function(t) {
+                            if (!t || !t.id) return false;
+                            var baseId = String(t.id).replace(/_main$/, '');
+                            if (seenIds[baseId]) return false;
+                            seenIds[baseId] = true;
+                            return true;
+                        });
+                    }
+                    data.meta.version = 5;
+                }
             }
             return data;
         }
@@ -2124,6 +2140,9 @@ body::before {
         // V10: 异步初始化，先启动 BackupMgr
         init: function() {
             var self = this;
+            // FIX-O1: 请求持久化存储(浏览器按互动史自动批准,无弹窗)。
+            // 防Safari"7天无互动驱逐脚本存储"和存储压力驱逐——账本数据零容忍被清。
+            try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch(e) {}
             BackupMgr.init().then(function() {
                 return BackupMgr.startupCheck();
             }).then(function() {
@@ -2199,7 +2218,12 @@ body::before {
             var self = this;
             this.render();
             var saveToStorage = function() {
-                localStorage.setItem('leaf_v7', JSON.stringify(self.data));
+                try {
+                    localStorage.setItem('leaf_v7', JSON.stringify(self.data));
+                } catch(err) {
+                    // FIX-O2: 存储配额满绝不静默——大声报警并给自救路径(快照库有自己的配额应急清理)
+                    try { alert('⚠️ 保存失败：手机存储空间不足！\n请立即用 ⚙️→📤导出数据 保住账本，然后清理手机空间。'); } catch(e2) {}
+                }
                 BackupMgr.saveSnapshot(self.data);
             };
             if (forceInstant) {
@@ -3340,15 +3364,10 @@ body::before {
             var txnDate = App.formatDateStr(App.currDate);
             var txnNote = (note ? note + ' ' : '') + prefix;
             if (!App.data.jarTxns) App.data.jarTxns = [];
-            // 保存到心愿专用流水
+            // FIX-Q1: 只写心愿流水(jarTxns)。旧版往主账本塞'_main'副本的双写已废——
+            // 年度池/当月存出/罐进度全部由jarTxns单源统计(FC/FD/getSaved),双写=每笔存钱被算两次。
             App.data.jarTxns.push({
                 id: txnId, type: 'expense', amt: amt,
-                cat: '储蓄', icon: '🐷', color: '#F3C583',
-                note: txnNote, date: txnDate
-            });
-            // 同步记录到主账本（计入总支出）
-            App.data.list.push({
-                id: txnId + '_main', type: 'expense', amt: amt,
                 cat: '储蓄', icon: '🐷', color: '#F3C583',
                 note: txnNote, date: txnDate
             });
