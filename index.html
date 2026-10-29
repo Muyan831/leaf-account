@@ -1764,6 +1764,7 @@ body::before {
             <p style="font-size:13px; color:#888; margin-bottom:20px;" id="yc-desc">去年的结余要怎么处理？</p>
             <div class="backup-btn" onclick="App.closeYearChoice('carry')" style="background:#E8F5E9; color:#2E7D32;">📥 带进今年（默认）</div>
             <div class="backup-btn" onclick="App.closeYearChoice('savings')" style="background:#FFF8E1; color:#BC6C25;">🐷 转入储蓄</div>
+            <div class="backup-btn" onclick="App.closeYearChoice('fresh')" style="background:#F3F4F6; color:#6B7280; font-size:13px;">♻️ 都不要 — 新一年清零重来</div>
         </div>
     </div>
 
@@ -2903,7 +2904,8 @@ body::before {
                     icon: '🐷', color: '#F3C583', note: '年初结余转入储蓄', date: (y - 1) + '-12-31' });
             } else {
                 if (!this.data.carryovers) this.data.carryovers = {};
-                this.data.carryovers[y] = pool;
+                // FIX-Y: 'fresh' = 都不要——不带入、不存储蓄，新一年显式清零重来
+                this.data.carryovers[y] = (mode === 'fresh') ? 0 : pool;
             }
             this.pendingYearPool = 0;
             this.saveData(true); this.buildIndex(); this.render();
