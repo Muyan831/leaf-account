@@ -1983,6 +1983,88 @@ body::before {
         }
     };
 
+    /* FIX-S: 跨平台真导出 — 手机分享面板/桌面直下/老WebView复制窗，绝不假装成功 */
+    function leafDownloadFile(blob, fileName, kind, okMsg) {
+        var isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+        // T1 系统分享面板: iOS PWA / Android Chrome — 存到文件、隔空投送、发给谁都行
+        if (navigator.share && navigator.canShare) {
+            try {
+                var f = new File([blob], fileName, { type: blob.type || 'application/octet-stream' });
+                if (navigator.canShare({ files: [f] })) {
+                    navigator.share({ files: [f], title: fileName }).then(function() {
+                        try { alert('✅ 已送出: ' + fileName + '\n在分享菜单里选「存储到文件」即可保存。'); } catch(e) {}
+                    }).catch(function(err) {
+                        if (err && err.name === 'AbortError') return; // 用户自己取消 = 不算失败
+                        leafDownloadTextFallback(blob, fileName, kind, okMsg);
+                    });
+                    return;
+                }
+            } catch(e) {}
+        }
+        // T2 桌面浏览器: a.download 真的会落地
+        if (!isMobile) {
+            try {
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(function() { URL.revokeObjectURL(url); }, 30000);
+                alert(okMsg || ('✅ ' + kind + '已导出。'));
+            } catch(e) { leafDownloadTextFallback(blob, fileName, kind, okMsg); }
+            return;
+        }
+        // T3 移动端又没有分享API(如安卓WebView壳): 弹复制窗，内容一字不少
+        leafDownloadTextFallback(blob, fileName, kind, okMsg);
+    }
+    function leafDownloadTextFallback(blob, fileName, kind, okMsg) {
+        var show = function(txt) {
+            var ov = document.createElement('div');
+            ov.className = 'leaf-text-export';
+            ov.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,.72);z-index:99999;display:flex;align-items:center;justify-content:center;padding:14px;';
+            var box = document.createElement('div');
+            box.style.cssText = 'background:#fff;color:#333;width:100%;max-width:520px;max-height:88vh;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:9px;';
+            var safeName = String(fileName).replace(/[<>&"]/g, '');
+            box.innerHTML = '<div style="font-weight:800;font-size:15px;">⚠️ 该设备不允许直接下载</div>'
+                + '<div style="font-size:12.5px;line-height:1.65;">浏览器把下载悄悄拦了——别担心，内容全在下面。点「全选复制」后粘到备忘录/文件App里保存即可。<br><b>'
+                + safeName + '</b></div>';
+            var ta = document.createElement('textarea');
+            ta.value = txt;
+            ta.setAttribute('readonly', '');
+            ta.style.cssText = 'width:100%;height:44vh;font-size:11px;font-family:monospace;border:1px solid #ccc;border-radius:8px;padding:8px;resize:none;background:#fafafa;';
+            box.appendChild(ta);
+            var row = document.createElement('div');
+            row.style.cssText = 'display:flex;gap:8px;';
+            var btnCopy = document.createElement('button');
+            btnCopy.textContent = '📋 全选复制';
+            btnCopy.style.cssText = 'flex:1;padding:11px;border:0;border-radius:9px;background:#4CAF50;color:#fff;font-weight:700;font-size:14px;cursor:pointer;';
+            btnCopy.onclick = function() {
+                ta.focus(); ta.select();
+                try { ta.setSelectionRange(0, ta.value.length); } catch(e) {}
+                var ok = false;
+                try { ok = document.execCommand('copy'); } catch(e) {}
+                if (!ok && navigator.clipboard) { try { navigator.clipboard.writeText(ta.value); ok = true; } catch(e) {} }
+                btnCopy.textContent = ok ? '✅ 已复制，去粘贴吧' : '复制失败，请长按全选';
+                if (ok) { try { navigator.vibrate && navigator.vibrate(30); } catch(e) {} }
+            };
+            var btnClose = document.createElement('button');
+            btnClose.textContent = '关闭';
+            btnClose.style.cssText = 'flex:0 0 92px;padding:11px;border:1px solid #bbb;border-radius:9px;background:#f5f5f5;font-size:14px;cursor:pointer;';
+            btnClose.onclick = function() { if (ov.parentNode) ov.parentNode.removeChild(ov); };
+            row.appendChild(btnCopy); row.appendChild(btnClose);
+            box.appendChild(row);
+            ov.appendChild(box);
+            document.body.appendChild(ov);
+        };
+        if (blob.text) { blob.text().then(show, function() { try { alert('❌ 读取失败'); } catch(e) {} }); }
+        else {
+            var fr = new FileReader();
+            fr.onload = function(e) { show(e.target.result); };
+            fr.readAsText(blob);
+        }
+    }
     const DataMgr = {
         export: function() {
             var dataStr = JSON.stringify(App.data, null, 2);
@@ -2010,15 +2092,7 @@ body::before {
             }
 
             var blob = new Blob([dataStr], {type: "application/json"});
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            alert("✅ 备份已准备就绪 (浏览器下载)。");
+            leafDownloadFile(blob, fileName, "JSON备份");
         },
         import: function(input) {
             var file = input.files[0];
@@ -2938,15 +3012,7 @@ body::before {
             var csv = BOM + header + rows;
             var fileName = 'leaf_report_' + new Date().toISOString().slice(0, 10) + '.csv';
             var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            alert('✅ CSV 报表已导出！\n可用 Excel 或 WPS 打开。');
+            leafDownloadFile(blob, fileName, "CSV报表", "✅ CSV 已导出，可用 Excel 或 WPS 打开。");
         },
 
         saveTrans: function() {
