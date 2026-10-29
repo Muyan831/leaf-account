@@ -2865,6 +2865,7 @@ body::before {
         },
         doReconcile: function() {
             var v = parseFloat(document.getElementById('rec-actual').value);
+            if (!App._rapidGate('recon', v)) return;
             if (isNaN(v) || !isFinite(v) || v < 0) { alert('请输入有效活钱总数'); return; }
             var diff = safeSub(v, this.lastAnnualPool || 0);
             if (Math.abs(diff) < 0.005) { alert('✅ 完全吻合，账本就是现实！'); closeModal(); return; }
@@ -3017,6 +3018,16 @@ body::before {
             leafDownloadFile(blob, fileName, "CSV报表", "✅ CSV 已导出，可用 Excel 或 WPS 打开。");
         },
 
+        // FIX-Z2(指纹版): 连点闸门 — 600ms内同一入口且同一份内容=双击重复,忽略;
+        // 内容不同(手快连记不同账)则放行, 永不吞合法快存
+        _rapidTs: {},
+        _rapidGate: function(key, fp) {
+            var now = Date.now();
+            var last = this._rapidTs[key];
+            if (last && last.fp === fp && (now - last.ts) < 600) return false;
+            this._rapidTs[key] = { ts: now, fp: fp };
+            return true;
+        },
         saveTrans: function() {
             var amt = parseFloat(document.getElementById('inp-amt').value);
             var note = document.getElementById('inp-note').value;
@@ -3041,6 +3052,9 @@ body::before {
 
             // FIX-M: 从未打开过类别选择器时 currCat=null, 主页快捷保存会崩溃(静默失败)
             if (!App.currCat) App.currCat = (CONFIG[App.currType] || CONFIG.expense)[0];
+            // FIX-Z2(修正): 指纹取"将要落库的记录内容", 必须在FIX-M归一化之后算——
+            // 否则首用户第一次保存把 currCat 从 null 变成默认类别, 同一次双击的两次调用指纹不同=穿透双记
+            if (!App._rapidGate('trans', [App.editingId, App.currType, App.currCat.name, amt, note, finalDate].join('|'))) return;
             var newTrans = {
                 id: newId,
                 type: App.currType,
@@ -3065,6 +3079,7 @@ body::before {
         saveNote: function() {
             var t = document.getElementById('n-title').value;
             var b = document.getElementById('n-body').value;
+            if (!App._rapidGate('note', t + '|' + b)) return;
             if(!t && !b) return;
             var colors = ['#FDF2B3', '#D1EAED', '#FFDADB', '#E2F0CB'];
             App.data.notes.unshift({
@@ -3262,6 +3277,8 @@ body::before {
 
         save: function() {
             var y = App.currDate.getFullYear();
+            var _bfp = Array.prototype.map.call(document.querySelectorAll('.budget-input'), function(i){ return i.value; }).join(',');
+            if (!App._rapidGate('budget', _bfp)) return;
             var m = App.currDate.getMonth() + 1;
             var monthKey = y + '-' + m;
             if (!App.data.budgets) App.data.budgets = {};
@@ -3392,6 +3409,7 @@ body::before {
 
         saveEdit: function() {
             var name = document.getElementById('jar-inp-name').value.trim();
+            if (!App._rapidGate('jarEdit', [this.editingJarId, name, document.getElementById('jar-inp-target').value, document.getElementById('jar-inp-deadline').value].join('|'))) return;
             var target = parseFloat(document.getElementById('jar-inp-target').value) || 0;
             if (!isFinite(target) || target < 0) target = 0;
             var deadline = document.getElementById('jar-inp-deadline').value || '';
@@ -3425,6 +3443,7 @@ body::before {
 
         confirmDeposit: function() {
             var amt = parseFloat(document.getElementById('jar-dep-amt').value);
+            if (!App._rapidGate('jarDep', [this.editingJarId, amt, document.getElementById('jar-dep-note').value].join('|'))) return;
             if (!amt || !isFinite(amt) || amt <= 0) return alert('请输入有效金额');
             var note = document.getElementById('jar-dep-note').value || '';
             var prefix = CONFIG.JAR_TXN_PREFIX + this.editingJarId;
@@ -3447,6 +3466,7 @@ body::before {
         },
 
         toggleComplete: function(jarId) {
+            if (!App._rapidGate('jarTog', jarId)) return;
             var jar = (App.data.wishJars || []).find(function(j) { return j.id === jarId; });
             if (!jar) return;
             jar.completed = !jar.completed;
@@ -3456,6 +3476,7 @@ body::before {
         },
 
         remove: function(jarId) {
+            if (!App._rapidGate('jarDel', jarId)) return;
             var prefix = CONFIG.JAR_TXN_PREFIX + jarId;
             var assocCount = (App.data.jarTxns || []).filter(function(t) { return t.note && t.note.indexOf(prefix) > -1; }).length;
             var msg = '确定删除此储蓄罐？';
@@ -3660,7 +3681,7 @@ body::before {
         });
         var s = sectorData[idx];
         document.getElementById('pie-explore-cat').textContent = s.icon + ' ' + s.name;
-        document.getElementById('pie-explore-val').textContent = '¥' + s.amt.toFixed(2);
+        document.getElementById('pie-explore-val').textContent = '¥' + (Number(s.amt)||0).toFixed(2);
         document.getElementById('pie-explore-pct').textContent = s.pct.toFixed(1) + '%';
     }
 
@@ -3688,7 +3709,7 @@ body::before {
 
         document.getElementById('popup-icon').textContent = s.icon;
         document.getElementById('popup-cat').textContent = s.name;
-        var detailText = m + '月共 ¥' + s.amt.toFixed(2) + ' · ' + txns.length + '笔';
+        var detailText = m + '月共 ¥' + (Number(s.amt)||0).toFixed(2) + ' · ' + txns.length + '笔';
         var typewriterEl = document.getElementById('popup-typewriter');
         typewriterEl.textContent = '';
 
